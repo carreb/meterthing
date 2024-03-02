@@ -2,7 +2,7 @@ import PogObject from "../PogData"
 import request from "../requestV2"
 import sleep from "../sleep"
 
-const API_URL = "https://api.domyjobfor.me/meterthing"
+const API_URL = "https://api.meterthing.cc/meterthing"
 const pog = new PogObject("meterthing", {
     magic_find: 0,
     since_last_rng: 0,
