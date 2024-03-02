@@ -1,7 +1,13 @@
 import PogObject from "../PogData"
+import request from "../requestV2"
+import sleep from "../sleep"
 
+const API_URL = "https://api.domyjobfor.me/meterthing"
 const pog = new PogObject("meterthing", {
     magic_find: 0,
+    since_last_rng: 0,
+    since_last_core: 0,
+    current_meterthing_version: "0"
 })
 
 let lastMagicFindMessage
@@ -35,6 +41,9 @@ register("chat", (message, event) => {
             let magicFindMessage = new Message("   &7↪ &6Judgement Core &7Chance: &b" + coreChanceMagicFind.toFixed(4) + "% +" + pog.magic_find + "✯ &8(" + coreChance.toFixed(4) + "% base)");
             magicFindMessage.chat()
             lastMagicFindMessage = magicFindMessage
+            pog.since_last_rng += 1
+            pog.since_last_core += 1
+            pog.save()
         }
     }
 
@@ -51,6 +60,21 @@ register("chat", (message, event) => {
         pog.magic_find = magicFind
         pog.save()
         recalculateMagicFind()
+        // wait for a bit so the message is sent after the drop message
+        sleep(200, () => {
+            if (message.match(/^(CRAZY RARE DROP!)\s\(/g)) {
+                if (itemName.includes("Judgement Core")) {
+                    let sinceLastCoreMessage = new Message("  &7↪ &7Bosses since last &6Judgement Core&7: &b" + pog.since_last_core)
+                    sinceLastCoreMessage.chat()
+                    pog.since_last_core = 0
+                    pog.save()
+                }
+                let sinceLastRNGMessage = new Message("  &7↪ &7Bosses since last &d&lRNG&7: &6" + pog.since_last_rng)
+                sinceLastRNGMessage.chat()
+                pog.since_last_rng = 0
+                pog.save()
+            }
+        })
     }
 }).setCriteria("${message}");
 
@@ -60,3 +84,37 @@ function recalculateMagicFind() {
      let newMessage = new Message("   &7↪ &6Judgement Core &7Chance: &b" + coreChanceMagicFind.toFixed(4) + "% +" + pog.magic_find + "✯ &8(" + coreChance.toFixed(4) + "% base)")
      lastMagicFindMessage.edit(newMessage)
 }
+
+register("worldLoad", () => {
+    request({
+        url: `${API_URL}/version`,
+        method: "GET",
+        resolveWithFullResponse: true,
+        headers: {
+            "User-Agent": "Mozilla/5.0"
+        },
+        connectTimeout: 5000,
+    })
+    .then((response) => {
+        let data = JSON.parse(response.body)
+        let currentFileVersion = JSON.parse(FileLib.read("meterthing", "metadata.json")).version
+        let latestVersion = data.version
+        if (data.version != pog.current_meterthing_version && data.version == currentFileVersion) {
+            ChatLib.chat("&d-------------------------")
+            ChatLib.chat("&fmeterthing has been updated to version " + latestVersion)
+            ChatLib.chat("")
+            ChatLib.chat("&fchangelog:")
+            for (let i = 0; i < data.changelog.length; i++) {
+                ChatLib.chat("&d- &7" + data.changelog[i])
+            }
+            ChatLib.chat("")
+            ChatLib.chat("&fthanks for using meterthing")
+            ChatLib.chat("&d-------------------------")
+            pog.current_meterthing_version = latestVersion;
+            pog.save();
+        }
+    })
+    .catch((error) => {
+        ChatLib.chat("&can error occurred while checking meterthing version. :( &7(" + error + ")");
+    })
+})
