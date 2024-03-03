@@ -3,5 +3,6 @@
   "creator": "carreb",
   "description": "expands on the data that rng meter shows for judgement core",
   "version": "1.3.0",
-  "entry": "index.js"
+  "entry": "index.js",
+  "requires": ["PogData", "sleep", "requestV2"]
 }
