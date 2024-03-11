@@ -6,7 +6,11 @@ const API_URL = "https://api.meterthing.cc/meterthing"
 const pog = new PogObject("meterthing", {
     magic_find: 0,
     since_last_rng: 0,
+    last_rng_dropped_at: new Date().getTime(),
     since_last_core: 0,
+    last_core_dropped_at: new Date().getTime(),
+    since_last_incarnate: 0,
+    last_incarnate_dropped_at: new Date().getTime(),
     current_meterthing_version: "0"
 })
 
@@ -43,6 +47,7 @@ register("chat", (message, event) => {
             lastMagicFindMessage = magicFindMessage
             pog.since_last_rng += 1
             pog.since_last_core += 1
+            pog.since_last_incarnate += 1
             pog.save()
         }
     }
@@ -61,17 +66,31 @@ register("chat", (message, event) => {
         pog.save()
         recalculateMagicFind()
         // wait for a bit so the message is sent after the drop message
-        sleep(200, () => {
+        sleep(50, () => {
             if (message.match(/^(CRAZY RARE DROP!)\s\(/g)) {
                 if (itemName.includes("Judgement Core")) {
                     let sinceLastCoreMessage = new Message("  &7↪ &7Bosses since last &6Judgement Core&7: &b" + pog.since_last_core)
+                    let timeSinceLastCoreMessage = new Message("  &7↪ &7Time since last &6Judgement Core&7: " + buildSinceLastTimeMessage(pog.last_core_dropped_at))
                     sinceLastCoreMessage.chat()
+                    timeSinceLastCoreMessage.chat()
+                    pog.last_core_dropped_at = new Date().getTime()
                     pog.since_last_core = 0
                     pog.save()
                 }
                 let sinceLastRNGMessage = new Message("  &7↪ &7Bosses since last &d&lRNG&7: &6" + pog.since_last_rng)
+                let timeSinceLastRNGMessage = new Message("  &7↪ &7Time since last &d&lRNG&7: " + buildSinceLastTimeMessage(pog.last_rng_dropped_at))
                 sinceLastRNGMessage.chat()
+                timeSinceLastRNGMessage.chat()
+                pog.last_rng_dropped_at = new Date().getTime()
                 pog.since_last_rng = 0
+                pog.save()
+            } else if (message.match(/^(INSANE DROP!)\s\(/g)) {
+                let sinceLastIncarnateMessage = new Message("  &7↪ &7Bosses since last &c&lINCARNATE&7: &5" + pog.since_last_incarnate)
+                let timeSinceLastIncarnateMessage = new Message("  &7↪ &7Time since last &c&lINCARNATE&7: " + buildSinceLastTimeMessage(pog.last_incarnate_dropped_at))
+                sinceLastIncarnateMessage.chat()
+                timeSinceLastIncarnateMessage.chat()
+                pog.last_incarnate_dropped_at = new Date().getTime()
+                pog.since_last_incarnate = 0
                 pog.save()
             }
         })
@@ -83,6 +102,30 @@ function recalculateMagicFind() {
      let coreChanceMagicFind = coreChance * (1 + pog.magic_find / 100);
      let newMessage = new Message("   &7↪ &6Judgement Core &7Chance: &b" + coreChanceMagicFind.toFixed(4) + "% +" + pog.magic_find + "✯ &8(" + coreChance.toFixed(4) + "% base)")
      lastMagicFindMessage.edit(newMessage)
+}
+
+function buildSinceLastTimeMessage(lastTime) {
+    let stringBuilder = "";
+    // use the stringBuilder to append the time
+    let currentTime = new Date().getTime();
+    let timeSince = currentTime - lastTime;
+    let seconds = Math.floor(timeSince / 1000);
+    let minutes = Math.floor(seconds / 60);
+    let hours = Math.floor(minutes / 60);
+    let days = Math.floor(hours / 24);
+    if (days > 0) {
+        stringBuilder += "&a" + days + "d ";
+    }
+    if (hours > 0) {
+        stringBuilder += "&a" + hours % 24 + "h ";
+    }
+    if (minutes > 0) {
+        stringBuilder += "&a" + minutes % 60 + "m ";
+    }
+    if (seconds > 0) {
+        stringBuilder += "&a" + seconds % 60 + "s.";
+    }
+    return stringBuilder;
 }
 
 register("worldLoad", () => {
