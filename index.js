@@ -1,6 +1,7 @@
 import PogObject from "../PogData"
 import request from "../requestV2"
 import sleep from "../sleep"
+import droptables from "./eman-droptables.js";
 
 const API_URL = "https://api.meterthing.cc/meterthing"
 const pog = new PogObject("meterthing", {
@@ -11,7 +12,9 @@ const pog = new PogObject("meterthing", {
     last_core_dropped_at: new Date().getTime(),
     since_last_incarnate: 0,
     last_incarnate_dropped_at: new Date().getTime(),
-    current_meterthing_version: "0"
+    current_meterthing_version: "0",
+    rng_meter_selected_item: "JUDGEMENT_CORE",
+    rng_meter_selected_table: "mainTable"
 })
 
 let lastMagicFindMessage
@@ -36,13 +39,12 @@ register("chat", (message, event) => {
             let xp = message.match(/\d{1,3}(?:,\d{3})*(?:\.\d+)?/g)[0];
             xpStripped = parseInt(xp.replace(/[,]/g,''))
             lastXP = xpStripped
-            let coreChance = (0.0565 * (1 + (2 * xpStripped/885000)))
-            let coreChanceMagicFind = (coreChance * (1 + (pog.magic_find / 100)))
-            let xpPercentage = xpStripped / 885000;
-            let meterMessage = new TextComponent("   &dRNG Meter &f- &d" + xp + "/885,000 Stored XP &8(" + Math.floor(xpStripped / 500) + "/" + 885000 / 500 + ")").setClick("run_command", `${clickaction}`).setHoverValue(`&7Your RNG meter is &d${(xpPercentage * 100).toFixed(2)}% &7filled!\n&7Click to open RNG Meter menu.`);
+            let xpPercentage = xpStripped / droptables[pog.rng_meter_selected_table][pog.rng_meter_selected_item].required_xp;
+            let requiredXpWithCommas = droptables[pog.rng_meter_selected_table][pog.rng_meter_selected_item].required_xp.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            let meterMessage = new TextComponent(`   &dRNG Meter &f- &d${xp}/${requiredXpWithCommas} XP &8(${Math.floor(xpStripped / 500)}/${Math.floor(droptables[pog.rng_meter_selected_table][pog.rng_meter_selected_item].required_xp / 500)})`).setClick("run_command", `${clickaction}`).setHoverValue(`&7Your RNG meter is &d${(xpPercentage * 100).toFixed(2)}% &7filled!\n&7Click to open RNG Meter menu.`);
             cancel(event)
             ChatLib.chat(meterMessage);
-            let magicFindMessage = new Message("   &7↪ &6Judgement Core &7Chance: &b" + coreChanceMagicFind.toFixed(4) + "% +" + pog.magic_find + "✯ &8(" + coreChance.toFixed(4) + "% base)");
+            let magicFindMessage = calculateMagicFind();
             magicFindMessage.chat()
             lastMagicFindMessage = magicFindMessage
             pog.since_last_rng += 1
@@ -97,11 +99,123 @@ register("chat", (message, event) => {
     }
 }).setCriteria("${message}");
 
+function calculateMagicFind() {
+    let selectedItemWeight = droptables.mainTable[pog.rng_meter_selected_item].weight;
+    let totalWeight = 0;
+    let itemName;
+
+    let magicFind = pog.magic_find;
+
+    // Apply buff from RNG meter to the weight of the selected item
+    if (pog.rng_meter_selected_table == "mainTable") {
+        selectedItemWeight = selectedItemWeight * (1 + Math.min((2 * lastXP / droptables.mainTable[pog.rng_meter_selected_item].required_xp), 2));
+        itemName = droptables.mainTable[pog.rng_meter_selected_item].name;
+    } else if (pog.rng_meter_selected_table == "cosmeticTable") {
+        selectedItemWeight = selectedItemWeight * (1 + Math.min((2 * lastXP / droptables.cosmeticTable[pog.rng_meter_selected_item].required_xp), 2));
+        itemName = droptables.cosmeticTable[pog.rng_meter_selected_item].name;
+    }
+
+    // Calculate the total weight of the table
+    for (let item in droptables.mainTable) {
+        if (item == pog.rng_meter_selected_item) {
+            let itemWeight = selectedItemWeight;
+            // Apply magic find
+            if (droptables.mainTable[item].magic_find) {
+                itemWeight = itemWeight * (1 + magicFind / 100);
+            }
+            totalWeight += itemWeight;
+        }
+        let itemWeight = droptables.mainTable[item].weight;
+        // Apply magic find
+        if (droptables.mainTable[item].magic_find) {
+            itemWeight = itemWeight * (1 + magicFind / 100);
+        }
+        totalWeight += itemWeight;
+    }
+
+    for (let item in droptables.cosmeticTable) {
+        if (item == pog.rng_meter_selected_item) {
+            let itemWeight = selectedItemWeight;
+            // Apply magic find
+            if (droptables.cosmeticTable[item].magic_find) {
+                itemWeight = itemWeight * (1 + magicFind / 100);
+            }
+            totalWeight += itemWeight;
+        }
+        let itemWeight = droptables.cosmeticTable[item].weight;
+        // Apply magic find
+        if (droptables.cosmeticTable[item].magic_find) {
+            itemWeight = itemWeight * (1 + magicFind / 100);
+        }
+        totalWeight += itemWeight;
+    }
+
+    // Get the chance of the selected item dropping
+    let chancePercentage = (selectedItemWeight / totalWeight) * 100;
+    let totalBosses = totalWeight / selectedItemWeight;
+    let newMessage = new Message(`   &7↪ ${itemName} &7Chance: &b${chancePercentage.toFixed(5)}% ${pog.magic_find}✯&7\n   &7↪ ${itemName} &7Weight: &a${selectedItemWeight.toFixed(2)}`)
+
+
+    return newMessage;
+}
+
 function recalculateMagicFind() {
-     let coreChance = 0.0565 * (1 + (2 * xpStripped) / 885000);
-     let coreChanceMagicFind = coreChance * (1 + pog.magic_find / 100);
-     let newMessage = new Message("   &7↪ &6Judgement Core &7Chance: &b" + coreChanceMagicFind.toFixed(4) + "% +" + pog.magic_find + "✯ &8(" + coreChance.toFixed(4) + "% base)")
-     lastMagicFindMessage.edit(newMessage)
+    let selectedItemWeight = droptables.mainTable[pog.rng_meter_selected_item].weight;
+    let totalWeight = 0;
+    let itemName;
+
+    let magicFind = pog.magic_find;
+
+    // Apply buff from RNG meter to the weight of the selected item
+    if (pog.rng_meter_selected_table == "mainTable") {
+        selectedItemWeight = selectedItemWeight * (1 + Math.min((2 * lastXP / droptables.mainTable[pog.rng_meter_selected_item].required_xp), 2));
+        itemName = droptables.mainTable[pog.rng_meter_selected_item].name;
+    } else if (pog.rng_meter_selected_table == "cosmeticTable") {
+        selectedItemWeight = selectedItemWeight * (1 + Math.min((2 * lastXP / droptables.cosmeticTable[pog.rng_meter_selected_item].required_xp), 2));
+        itemName = droptables.cosmeticTable[pog.rng_meter_selected_item].name;
+    }
+
+    // Calculate the total weight of the table
+    for (let item in droptables.mainTable) {
+        if (item == pog.rng_meter_selected_item) {
+            let itemWeight = selectedItemWeight;
+            // Apply magic find
+            if (droptables.mainTable[item].magic_find) {
+                itemWeight = itemWeight * (1 + magicFind / 100);
+            }
+            totalWeight += itemWeight;
+        }
+        let itemWeight = droptables.mainTable[item].weight;
+        // Apply magic find
+        if (droptables.mainTable[item].magic_find) {
+            itemWeight = itemWeight * (1 + magicFind / 100);
+        }
+        totalWeight += itemWeight;
+    }
+
+    for (let item in droptables.cosmeticTable) {
+        if (item == pog.rng_meter_selected_item) {
+            let itemWeight = selectedItemWeight;
+            // Apply magic find
+            if (droptables.cosmeticTable[item].magic_find) {
+                itemWeight = itemWeight * (1 + magicFind / 100);
+            }
+            totalWeight += itemWeight;
+        }
+        let itemWeight = droptables.cosmeticTable[item].weight;
+        // Apply magic find
+        if (droptables.cosmeticTable[item].magic_find) {
+            itemWeight = itemWeight * (1 + magicFind / 100);
+        }
+        totalWeight += itemWeight;
+    }
+
+    // Get the chance of the selected item dropping
+    let chancePercentage = (selectedItemWeight / totalWeight) * 100;
+    let totalBosses = totalWeight / selectedItemWeight;
+    let newMessage = new Message(`   &7↪ ${itemName} &7Chance: &b${chancePercentage.toFixed(5)}% ${pog.magic_find}✯&7\n   &7↪ ${itemName} &7Weight: &a${selectedItemWeight.toFixed(2)}`)
+
+    lastMagicFindMessage.edit(newMessage)
 }
 
 function buildSinceLastTimeMessage(lastTime) {
