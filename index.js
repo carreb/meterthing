@@ -66,7 +66,7 @@ register("chat", (message, event) => {
         magicFind = magicFind.replace(/[^0-9]/g, '');
         pog.magic_find = magicFind
         pog.save()
-        recalculateMagicFind()
+        lastMagicFindMessage.edit(calculateMagicFind())
         // wait for a bit so the message is sent after the drop message
         sleep(50, () => {
             if (message.match(/^(CRAZY RARE DROP!)\s\(/g)) {
@@ -104,118 +104,53 @@ function calculateMagicFind() {
     let totalWeight = 0;
     let itemName;
 
-    let magicFind = pog.magic_find;
-
     // Apply buff from RNG meter to the weight of the selected item
-    if (pog.rng_meter_selected_table == "mainTable") {
-        selectedItemWeight = selectedItemWeight * (1 + Math.min((2 * lastXP / droptables.mainTable[pog.rng_meter_selected_item].required_xp), 2));
-        itemName = droptables.mainTable[pog.rng_meter_selected_item].name;
-    } else if (pog.rng_meter_selected_table == "cosmeticTable") {
-        selectedItemWeight = selectedItemWeight * (1 + Math.min((2 * lastXP / droptables.cosmeticTable[pog.rng_meter_selected_item].required_xp), 2));
-        itemName = droptables.cosmeticTable[pog.rng_meter_selected_item].name;
-    }
+    selectedItemWeight = selectedItemWeight * (1 + Math.min((2 * lastXP / droptables[pog.rng_meter_selected_table][pog.rng_meter_selected_item].required_xp), 2));
+    itemName = droptables[pog.rng_meter_selected_table][pog.rng_meter_selected_item].name;
 
     // Calculate the total weight of the table
     for (let item in droptables.mainTable) {
+        let magicFind = pog.magic_find;
         if (item == pog.rng_meter_selected_item) {
-            let itemWeight = selectedItemWeight;
-            // Apply magic find
-            if (droptables.mainTable[item].magic_find) {
-                itemWeight = itemWeight * (1 + magicFind / 100);
-            }
-            totalWeight += itemWeight;
+            continue;
         }
         let itemWeight = droptables.mainTable[item].weight;
         // Apply magic find
         if (droptables.mainTable[item].magic_find) {
-            itemWeight = itemWeight * (1 + magicFind / 100);
+            itemWeight = itemWeight * (1 + (magicFind / 100));
+            totalWeight += itemWeight;
+        } else {
+            totalWeight += itemWeight;
         }
-        totalWeight += itemWeight;
     }
 
-    for (let item in droptables.cosmeticTable) {
+    if (pog.rng_meter_selected_table == "cosmeticTable") {
+      for (let item in droptables.cosmeticTable) {
+        let magicFind = pog.magic_find;
         if (item == pog.rng_meter_selected_item) {
-            let itemWeight = selectedItemWeight;
-            // Apply magic find
-            if (droptables.cosmeticTable[item].magic_find) {
-                itemWeight = itemWeight * (1 + magicFind / 100);
-            }
-            totalWeight += itemWeight;
+            continue;
         }
         let itemWeight = droptables.cosmeticTable[item].weight;
         // Apply magic find
         if (droptables.cosmeticTable[item].magic_find) {
-            itemWeight = itemWeight * (1 + magicFind / 100);
+            itemWeight = itemWeight * (1 + (magicFind / 100));
+            totalWeight += itemWeight;
+        } else {
+            totalWeight += itemWeight;
         }
-        totalWeight += itemWeight;
+      }
     }
+
+    selectedItemWeight = selectedItemWeight * (1 + (pog.magic_find / 100));
+    totalWeight += selectedItemWeight;
 
     // Get the chance of the selected item dropping
     let chancePercentage = (selectedItemWeight / totalWeight) * 100;
     let totalBosses = totalWeight / selectedItemWeight;
-    let newMessage = new Message(`   &7↪ ${itemName} &7Chance: &b${chancePercentage.toFixed(5)}% ${pog.magic_find}✯&7\n   &7↪ ${itemName} &7Weight: &a${selectedItemWeight.toFixed(2)}`)
+    let newMessage = new Message(`   &7↪ ${itemName} &7Chance: &b${chancePercentage.toFixed(5)}% ${pog.magic_find}✯ &8(1/${totalBosses.toFixed(0)})\n   &7↪ ${itemName} &7Weight: &a${selectedItemWeight.toFixed(2)}&7/${totalWeight.toFixed(0)}`)
 
 
     return newMessage;
-}
-
-function recalculateMagicFind() {
-    let selectedItemWeight = droptables.mainTable[pog.rng_meter_selected_item].weight;
-    let totalWeight = 0;
-    let itemName;
-
-    let magicFind = pog.magic_find;
-
-    // Apply buff from RNG meter to the weight of the selected item
-    if (pog.rng_meter_selected_table == "mainTable") {
-        selectedItemWeight = selectedItemWeight * (1 + Math.min((2 * lastXP / droptables.mainTable[pog.rng_meter_selected_item].required_xp), 2));
-        itemName = droptables.mainTable[pog.rng_meter_selected_item].name;
-    } else if (pog.rng_meter_selected_table == "cosmeticTable") {
-        selectedItemWeight = selectedItemWeight * (1 + Math.min((2 * lastXP / droptables.cosmeticTable[pog.rng_meter_selected_item].required_xp), 2));
-        itemName = droptables.cosmeticTable[pog.rng_meter_selected_item].name;
-    }
-
-    // Calculate the total weight of the table
-    for (let item in droptables.mainTable) {
-        if (item == pog.rng_meter_selected_item) {
-            let itemWeight = selectedItemWeight;
-            // Apply magic find
-            if (droptables.mainTable[item].magic_find) {
-                itemWeight = itemWeight * (1 + magicFind / 100);
-            }
-            totalWeight += itemWeight;
-        }
-        let itemWeight = droptables.mainTable[item].weight;
-        // Apply magic find
-        if (droptables.mainTable[item].magic_find) {
-            itemWeight = itemWeight * (1 + magicFind / 100);
-        }
-        totalWeight += itemWeight;
-    }
-
-    for (let item in droptables.cosmeticTable) {
-        if (item == pog.rng_meter_selected_item) {
-            let itemWeight = selectedItemWeight;
-            // Apply magic find
-            if (droptables.cosmeticTable[item].magic_find) {
-                itemWeight = itemWeight * (1 + magicFind / 100);
-            }
-            totalWeight += itemWeight;
-        }
-        let itemWeight = droptables.cosmeticTable[item].weight;
-        // Apply magic find
-        if (droptables.cosmeticTable[item].magic_find) {
-            itemWeight = itemWeight * (1 + magicFind / 100);
-        }
-        totalWeight += itemWeight;
-    }
-
-    // Get the chance of the selected item dropping
-    let chancePercentage = (selectedItemWeight / totalWeight) * 100;
-    let totalBosses = totalWeight / selectedItemWeight;
-    let newMessage = new Message(`   &7↪ ${itemName} &7Chance: &b${chancePercentage.toFixed(5)}% ${pog.magic_find}✯&7\n   &7↪ ${itemName} &7Weight: &a${selectedItemWeight.toFixed(2)}`)
-
-    lastMagicFindMessage.edit(newMessage)
 }
 
 function buildSinceLastTimeMessage(lastTime) {
