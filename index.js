@@ -20,6 +20,8 @@ const pog = new PogObject("meterthing", {
 let lastMagicFindMessage
 let lastXP
 
+let checkedForUpdateThisSession = false;
+
 
 register("chat", (message, event) => {
     let doingVoidgloom = false
@@ -178,6 +180,7 @@ function buildSinceLastTimeMessage(lastTime) {
 }
 
 register("worldLoad", () => {
+    if (checkedForUpdateThisSession) return;
     request({
         url: `${API_URL}/version`,
         method: "GET",
@@ -204,9 +207,13 @@ register("worldLoad", () => {
             ChatLib.chat("&d-------------------------")
             pog.current_meterthing_version = latestVersion;
             pog.save();
+            checkedForUpdateThisSession = true;
         }
     })
     .catch((error) => {
-        ChatLib.chat("&can error occurred while checking meterthing version. :( &7(" + error + ")");
-    })
+        ChatLib.chat("&can error occurred while checking meterthing version. :("); 
+        ChatLib.chat("&7Please report this error to the developer:")
+        ChatLib.chat("&8" + error)
+        checkedForUpdateThisSession = true;
+    });
 })
