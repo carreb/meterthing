@@ -2,7 +2,7 @@
   "name": "meterthing",
   "creator": "carreb",
   "description": "expands on the data that rng meter shows for judgement core",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "entry": "index.js",
   "requires": ["PogData", "sleep", "requestV2"]
 }
